@@ -15,7 +15,7 @@ img_dir = r'E:\50_plex\tif'
 script_file = 'script.csv'
 
 
-df = pd.read_csv('script.csv')
+df = pd.read_csv(script_file)
 
 # add/update new alphas for each channel
 df["alpha1"] = np.nan if 'alpha1' not in df.columns else None
@@ -116,8 +116,9 @@ for index, row in df.iterrows():
     max_s = np.max(s)
     source[source > max_s] = 0
 
-    # create and save new image
+    # create unmixed image
     corrected_img = source - alpha1 * noise_1 - alpha2 * noise_2 - alpha3 * noise_3
+    corrected_img[corrected_img < 0] = 0
     corrected_img = img_as_uint(corrected_img)
 
 
