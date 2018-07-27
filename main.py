@@ -15,41 +15,44 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--img_dir', type=str, default='E:/50_plex/tif', help='path to the directory of images')
 parser.add_argument('--script_file', type=str, default='script.csv', help='script file name')
 parser.add_argument('--default_box', type=str, default='16200_6100_21300_12200', help='xmin_ymin_xmax_ymax')
-parser.add_argument('--visualize', action='store_true', help='visualize the unmixing report of crop')
+parser.add_argument('--visualize', type=bool, default=True, help='plot the unmixing report | True | False')
 args = parser.parse_args()
 
 
 img_dir = args.img_dir
 
 
-def visualize_results(s=None, n1=None, n2=None, n3=None, c=None):
+def visualize_results(s, n1, n2, n3, c, name):
 
-    ax1 = plt.subplot(311)
-    plt.imshow(s, cmap='gray')
-    plt.axis('off')
-    plt.title('source')
+    fig = plt.figure()
 
-    plt.subplot(334, sharex=ax1, sharey=ax1)
-    plt.imshow(n1, cmap='gray')
-    plt.axis('off')
-    plt.title('noise')
+    ax1 = fig.add_subplot(311)
+    ax1.imshow(s, cmap='gray')
+    ax1.axis('off')
+    ax1.set_title('source')
 
-    plt.subplot(335, sharex=ax1, sharey=ax1)
-    plt.imshow(n2, cmap='gray')
-    plt.axis('off')
-    plt.title('noise')
+    ax2 = fig.add_subplot(334, sharex=ax1, sharey=ax1)
+    ax2.imshow(n1, cmap='gray')
+    ax2.axis('off')
+    ax2.set_title('noise')
 
-    plt.subplot(336, sharex=ax1, sharey=ax1)
-    plt.imshow(n3, cmap='gray')
-    plt.axis('off')
-    plt.title('noise')
+    ax3 = fig.add_subplot(335, sharex=ax1, sharey=ax1)
+    ax3.imshow(n2, cmap='gray')
+    ax3.axis('off')
+    ax3.set_title('noise')
 
-    plt.subplot(313, sharex=ax1, sharey=ax1)
-    plt.imshow(c, cmap='gray')
-    plt.axis('off')
-    plt.title('corrected')
+    ax4 = fig.add_subplot(336, sharex=ax1, sharey=ax1)
+    ax4.imshow(n3, cmap='gray')
+    ax4.axis('off')
+    ax4.set_title('noise')
 
-    plt.show()
+    ax5 = fig.add_subplot(313, sharex=ax1, sharey=ax1)
+    ax5.imshow(c, cmap='gray')
+    ax5.axis('off')
+    ax5.set_title('corrected')
+
+    plt.suptitle(name)
+    plt.savefig(name + '.png', dpi=300)
 
 
 def unmix_channel(src_name, n1_name, n2_name, n3_name, box_info, visualize=False):
@@ -101,7 +104,7 @@ def unmix_channel(src_name, n1_name, n2_name, n3_name, box_info, visualize=False
 
     # visualize crop
     if visualize:
-        visualize_results(s=s, n1=n1, n2=n2, n3=n3, c=c)
+        visualize_results(s=s, n1=n1, n2=n2, n3=n3, c=c, name=os.path.splitext(src_name)[0])
 
     # clean artifacts in image
     max_s = np.max(s)
@@ -114,10 +117,11 @@ def unmix_channel(src_name, n1_name, n2_name, n3_name, box_info, visualize=False
         warnings.simplefilter("ignore")
         corrected_img = img_as_uint(corrected_img)
 
-    # adjust histogram of image
-    adjusted_img = exposure.rescale_intensity(corrected_img, in_range='image', out_range='dtype')
+    return corrected_img, [alpha1, alpha2, alpha3]
 
-    return adjusted_img, [alpha1, alpha2, alpha3]
+
+def rescale_histogram(image):
+    return exposure.rescale_intensity(image, in_range='image', out_range='dtype')
 
 
 def main():
@@ -134,36 +138,41 @@ def main():
 
     for index, row in df.iterrows():
 
-        # if no noise channel is given
-        if row[["channel_1", "channel_2", "channel_3"]].isnull().all():
-            continue
-
-        print('==============================================================')
+        print('=' * 50)
         start = time.time()
         src_name = row["filename"]
         print('unmixing image {}'.format(src_name))
-        n1_name = row["channel_1"]
-        n2_name = row["channel_2"]
-        n3_name = row["channel_3"]
+        n1_name = str(row["channel_1"])
+        n2_name = str(row["channel_2"])
+        n3_name = str(row["channel_3"])
 
-        box_info = np.empty(4, dtype=int)
-        box_info[0] = int(row["xmin"]) if pd.notna(row['xmin']) else default_box[0]     #xmin
-        box_info[1] = int(row["ymin"]) if pd.notna(row['ymin']) else default_box[1]     #ymin
-        box_info[2] = int(row["xmax"]) if pd.notna(row['xmax']) else default_box[2]     #xmax
-        box_info[3] = int(row["ymax"]) if pd.notna(row['ymax']) else default_box[3]     #ymax
+        # if no noise channel is given just rescale the histogram
+        if all([x == 'nan' for x in[n1_name, n2_name, n3_name]]):
+            # for images without unmixing, just rescale the histogram
+            unmixed_image = tifffile.imread(os.path.join(img_dir, src_name))
+        else:
+            # read information from box
+            box_info = np.empty(4, dtype=int)
+            box_info[0] = int(row["xmin"]) if pd.notna(row['xmin']) else default_box[0]     #xmin
+            box_info[1] = int(row["ymin"]) if pd.notna(row['ymin']) else default_box[1]     #ymin
+            box_info[2] = int(row["xmax"]) if pd.notna(row['xmax']) else default_box[2]     #xmax
+            box_info[3] = int(row["ymax"]) if pd.notna(row['ymax']) else default_box[3]     #ymax
 
-        # unmix
-        adjusted_img, alpha = unmix_channel(src_name, n1_name, n2_name, n3_name, box_info, visualize=args.visualize)
+            # unmix
+            unmixed_image, alpha = unmix_channel(src_name, n1_name, n2_name, n3_name, box_info, visualize=args.visualize)
 
+            # update alphas with derived values
+            df.loc[index, 'alpha1'] = alpha[0]
+            df.loc[index, 'alpha2'] = alpha[1]
+            df.loc[index, 'alpha3'] = alpha[2]
+
+        # rescale histogram of image
+        adjusted_img = rescale_histogram(unmixed_image)
+
+        # save image
         src_fname = os.path.splitext(src_name)[0]
         new_name = os.path.join(img_dir, src_fname + '_unmixed.tif')
         tifffile.imsave(new_name, adjusted_img, bigtiff=True)
-
-        # update alphas with derived values
-        df.loc[index, 'alpha1'] = alpha[0]
-        df.loc[index, 'alpha2'] = alpha[1]
-        df.loc[index, 'alpha3'] = alpha[2]
-
         end = time.time()
         print('time = {}'.format(end - start))
 
