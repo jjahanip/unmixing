@@ -26,33 +26,36 @@ def visualize_results(s, n1, n2, n3, c, name):
 
     fig = plt.figure()
 
-    ax1 = fig.add_subplot(311)
+    ax1 = fig.add_subplot(221)
     ax1.imshow(s, cmap='gray')
     ax1.axis('off')
     ax1.set_title('source')
 
-    ax2 = fig.add_subplot(334, sharex=ax1, sharey=ax1)
-    ax2.imshow(n1, cmap='gray')
+    ax2 = fig.add_subplot(222, sharex=ax1, sharey=ax1)
+    ax2.imshow(c, cmap='gray')
     ax2.axis('off')
-    ax2.set_title('noise')
+    ax2.set_title('unmixed')
 
-    ax3 = fig.add_subplot(335, sharex=ax1, sharey=ax1)
-    ax3.imshow(n2, cmap='gray')
+    ax3 = fig.add_subplot(234, sharex=ax1, sharey=ax1)
+    ax3.imshow(n1, cmap='gray')
     ax3.axis('off')
-    ax3.set_title('noise')
+    ax3.set_title('noise 1')
 
-    ax4 = fig.add_subplot(336, sharex=ax1, sharey=ax1)
-    ax4.imshow(n3, cmap='gray')
+    ax4 = fig.add_subplot(235, sharex=ax1, sharey=ax1)
+    ax4.imshow(n2, cmap='gray')
     ax4.axis('off')
-    ax4.set_title('noise')
+    ax4.set_title('noise 2')
 
-    ax5 = fig.add_subplot(313, sharex=ax1, sharey=ax1)
-    ax5.imshow(c, cmap='gray')
+    ax5 = fig.add_subplot(236, sharex=ax1, sharey=ax1)
+    ax5.imshow(n3, cmap='gray')
     ax5.axis('off')
-    ax5.set_title('corrected')
+    ax5.set_title('noise 3')
+
+
 
     plt.suptitle(name)
-    plt.savefig(name + '.png', dpi=300)
+    plt.savefig(name + '.png', dpi=1000)
+    plt.close(fig)
 
 
 def unmix_channel(src_name, n1_name, n2_name, n3_name, box_info, visualize=False):
@@ -174,7 +177,7 @@ def main():
         new_name = os.path.join(img_dir, src_fname + '_unmixed.tif')
         tifffile.imsave(new_name, adjusted_img, bigtiff=True)
         end = time.time()
-        print('time = {}'.format(end - start))
+        print('time = {:.2f} sec'.format(end - start))
 
     df.to_csv(os.path.splitext(args.script_file)[0] + '_unmixed.csv', index=False)
 
