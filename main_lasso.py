@@ -103,6 +103,12 @@ def unmix_original_images(rois, images, alphas, names):
 
         # extend shrank histogram
         corrected_img = rescale_histogram(corrected_img)
+
+        # convert to uint16
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            corrected_img = img_as_uint(corrected_img)
+            
         # save image
         save_name = os.path.join(args.save_dir, name)
         tifffile.imsave(save_name, corrected_img, bigtiff=True)
