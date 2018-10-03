@@ -12,8 +12,12 @@ import matplotlib.pyplot as plt
 from sklearn import linear_model
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--img_dir', type=str, default='E:/50_plex/tif', help='path to the directory of images')
-parser.add_argument('--default_box', type=str, default='16200_6100_21300_12200', help='xmin_ymin_xmax_ymax')
+parser.add_argument('--img_dir', type=str, default='E:/10_plex_stroke_rat/original', help='path to the directory of input images')
+parser.add_argument('--save_dir', type=str, default='E:/10_plex_stroke_rat/unmixed', help='path to the directory to save unmixed images')
+parser.add_argument('--default_box', type=str, default='30000_500_48000_12000', help='xmin_ymin_xmax_ymax')
+parser.add_argument('--round_pattern', type=str, default='R(\d+)', help='pattern for round idx')
+parser.add_argument('--channel_pattern', type=str, default='C(\d+)', help='pattern for channel idx')
+
 args = parser.parse_args()
 
 img_dir = args.img_dir
@@ -25,7 +29,7 @@ def rescale_histogram(image):
 
 def get_unmixing_params(images):
     # make a list to keep result parameters
-    results = np.zeros((10, 10))
+    results = np.zeros((len(images), len(images)))
 
     # for all channels except C0 (which is DAPI)
     for i in range(1, len(images)):
@@ -61,12 +65,13 @@ def write_params_to_csv(filename, alphas, round_files):
         script_rows_str.append([])
         if len(row) != 0:
             for idx in row:
-                new_row = [file for file in round_files if '_C{}_'.format(idx) in file][0]
+                new_row = [file for file in round_files if 'C{}'.format(idx) in file][0]
                 script_rows_str[row_idx].append(new_row)
             if len(script_rows_str[row_idx]) < 3:
                 script_rows_str[row_idx] = append_nones(3, script_rows_str[row_idx])
             if len(script_rows_str[row_idx]) > 3:
-                script_rows_str[row_idx] = script_rows_str[row_idx][:3]
+                script_rows_str[row_idx] = [fname for _, fname in sorted(zip(alphas[row_idx], round_files),
+                                                                         reverse=True)[:3]]
         else:
             script_rows_str[row_idx] = [None] * 3
 
@@ -90,14 +95,17 @@ def unmix_original_images(rois, images, alphas, names):
         image[image > max_s] = 0
 
         # unmix whole brain image
-        corrected_img = image - np.sum([a * img for a, img in zip(alpha, images) if a != 0.0], axis=0)
-        corrected_img[corrected_img < 0] = 0
+        if np.sum(alpha) > 0.0:
+            corrected_img = image - np.sum([a * img for a, img in zip(alpha, images) if a != 0.0], axis=0)
+            corrected_img[corrected_img < 0] = 0
+        else:
+            corrected_img = image
 
         # extend shrank histogram
         corrected_img = rescale_histogram(corrected_img)
         # save image
-        new_name = os.path.join(img_dir, 'unmixed', os.path.splitext(name)[0] + '_unmixed' + os.path.splitext(name)[1])
-        tifffile.imsave(new_name, corrected_img, bigtiff=True)
+        save_name = os.path.join(args.save_dir, name)
+        tifffile.imsave(save_name, corrected_img, bigtiff=True)
 
 
 def main():
@@ -108,8 +116,8 @@ def main():
         os.mkdir(os.path.join(img_dir, 'unmixed'))
 
     # find how many rounds and channels we have
-    num_rounds = max(set([int(re.compile('_R(\d+)_').findall(file)[0])for file in files]))
-    num_channels = max(set([int(re.compile('_C(\d+)_').findall(file)[0]) for file in files]))
+    num_rounds = max(set([int(re.compile(args.round_pattern).findall(file)[0])for file in files]))
+    num_channels = max(set([int(re.compile(args.channel_pattern).findall(file)[0]) for file in files]))
 
     default_box = list(map(int, args.default_box.split('_')))
     xmin, ymin, xmax, ymax = default_box
@@ -117,20 +125,32 @@ def main():
     images = []
     rois = []
     for round_idx in range(1, num_rounds + 1):
-        round_files = list(filter(lambda x: '_R{}_'.format(round_idx) in x, files))
+        print('*' * 50)
+        print('Unxminging round {} ...'.format(round_idx))
+        round_files = list(filter(lambda x: 'R{}'.format(round_idx) in x, files))
         # last channel is brightfield so delete it
-        round_files = [file for file in round_files if '_C{}'.format(num_channels) not in file]
+        round_files = [file for file in round_files if 'C{}'.format(num_channels) not in file]
+
+        # read images
+        print('Reading images.')
         for channel_idx in range(num_channels):
             # get file name
-            filename = list(filter(lambda x: '_C{}_'.format(channel_idx) in x, round_files))[0]
+            filename = list(filter(lambda x: 'C{}'.format(channel_idx) in x, round_files))[0]
             # read image and append to list
             image = img_as_float(tifffile.imread(os.path.join(img_dir, filename)))
             images.append(image)
             rois.append(np.copy(image[ymin:ymax, xmin:xmax]))
 
         # find unmixing params from ROIs
+        print('Calculating unmixing parameters from ROIs.')
         alphas = get_unmixing_params(rois)
-        write_params_to_csv('step_1.csv', alphas, round_files)
+        # create folder and save unmixing parameters into csv file
+        print('writing unmixing parameters in {}'.format(os.path.join(args.save_dir, 'unsupervised.csv')))
+        if not os.path.exists(args.save_dir):
+            os.makedirs(args.save_dir)
+        write_params_to_csv(os.path.join(args.save_dir, 'unsupervised.csv'), alphas, round_files)
+        # save unmixed images
+        print('Unmixing images and writing to disk')
         unmix_original_images(rois, images, alphas, round_files)
 
         images = []
@@ -139,8 +159,12 @@ def main():
 
 if __name__ == '__main__':
 
+    start = time.time()
     main()
-    print()
+    print('*' * 50)
+    print('*' * 50)
+    print('Unmixing pipeline finished successfully in {} seconds.'.format(time.time() - start))
+
     # script is fixed with size of 3 endmembers
     #TODO: np.count_nonzero(alphas)
 
