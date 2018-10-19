@@ -12,10 +12,11 @@ import tifffile
 import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--img_dir', type=str, default='E:/50_plex/tif', help='path to the directory of images')
-parser.add_argument('--script_file', type=str, default='script.csv', help='script file name')
-parser.add_argument('--default_box', type=str, default='16200_6100_21300_12200', help='xmin_ymin_xmax_ymax')
-parser.add_argument('--visualize', type=bool, default=True, help='plot the unmixing report | True | False')
+parser.add_argument('--img_dir', type=str, default='E:/10_plex_stroke_rat/original', help='path to the directory of images')
+parser.add_argument('--save_dir', type=str, default='E:/10_plex_stroke_rat/unmixed', help='path to the directory to save unmixed images')
+parser.add_argument('--script_file', type=str, default='E:/10_plex_stroke_rat/supervised.csv', help='script file name')
+parser.add_argument('--default_box', type=str, default='30000_500_48000_12000', help='xmin_ymin_xmax_ymax')
+parser.add_argument('--visualize', type=bool, default=False, help='plot the unmixing report | True | False')
 args = parser.parse_args()
 
 
@@ -140,11 +141,11 @@ def main():
     df["alpha3"] = np.nan if 'alpha3' not in df.columns else None
 
     for index, row in df.iterrows():
-
-        print('=' * 50)
-        start = time.time()
         src_name = row["filename"]
+
+        print('*' * 50)
         print('unmixing image {}'.format(src_name))
+
         n1_name = str(row["channel_1"])
         n2_name = str(row["channel_2"])
         n3_name = str(row["channel_3"])
@@ -173,22 +174,18 @@ def main():
         adjusted_img = rescale_histogram(unmixed_image)
 
         # save image
-        src_fname = os.path.splitext(src_name)[0]
-        new_name = os.path.join(img_dir, src_fname + '_unmixed.tif')
-        tifffile.imsave(new_name, adjusted_img, bigtiff=True)
-        end = time.time()
-        print('time = {:.2f} sec'.format(end - start))
+        save_name = os.path.join(args.save_dir, src_name)
+        tifffile.imsave(save_name, adjusted_img, bigtiff=True)
 
-    df.to_csv(os.path.splitext(args.script_file)[0] + '_unmixed.csv', index=False)
-
-    print('==============================================================')
-    print('unmixing pipeline finished successfully!')
+    df.to_csv(os.path.join(args.save_dir, 'supervised.csv'), index=False)
 
 
 if __name__ == '__main__':
 
+    start = time.time()
     main()
-    print()
-
+    print('*' * 50)
+    print('*' * 50)
+    print('Unmixing pipeline finished successfully in {} seconds.'.format(time.time() - start))
 
 

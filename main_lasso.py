@@ -108,7 +108,7 @@ def unmix_original_images(rois, images, alphas, names):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             corrected_img = img_as_uint(corrected_img)
-            
+
         # save image
         save_name = os.path.join(args.save_dir, name)
         tifffile.imsave(save_name, corrected_img, bigtiff=True)
@@ -171,7 +171,7 @@ if __name__ == '__main__':
     print('*' * 50)
     print('Unmixing pipeline finished successfully in {} seconds.'.format(time.time() - start))
 
-    # script is fixed with size of 3 endmembers
-    #TODO: np.count_nonzero(alphas)
 
+    # TODO: script is fixed with size of 3 endmembers -> np.count_nonzero(alphas)
+    # TODO: add xmin ymin xmax ymax to scrip
 
