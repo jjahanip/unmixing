@@ -3,7 +3,7 @@
 unmixing_pipeline is a tool for unmixing Immunohistochemistry (IHC) images taken in multiple channels and rounds.
 
 
-# Dependencies:
+## Dependencies:
 
 * numpy
 * scipy
@@ -11,31 +11,54 @@ unmixing_pipeline is a tool for unmixing Immunohistochemistry (IHC) images taken
 * tiffile
 * matplotlib
 
-# Pipeline:
+## Pipeline:
 
-Providing a script with channel information, you can unmix noise channels from source channel:
+You can run the unmxing pipeline in 2 modes:
+1. `main_unsupervised`: In this mode, all the channels of same round are going to be unmixed with
+ __sparse spectral unmixing__ algorithm.
+ 
+    ```bash
+    python main_unsupervised.py --img_dir=/path/to/input/dir \
+                                --save_dir=/path/to/save/dir    
+    ``` 
+    It will save unmixed images and generate a script of unmixed channels in the `save_dir`:
+    ![Alt text](files/0.png)
 
-![Alt text](files/1.png)
-
-# Arguments:
-
-* --img_dir     : help = path to the directory of images                example: --img_dir E:/50_plex/tif
-* --script_file : help = csv script file name                           example: --script_file script.csv
-* --default_box : help = selected box coordinates xmin_ymin_xmax_ymax   example: --default_box 16200_6100_21300_12200
-* --visualize   : help = visualize the unmixing report of crop          example: --visualize
-
-```bash
-python main.py --img_dir E:/50_plex/tif --script_file script.csv --default_box 16200_6100_21300_12200 --visualize
-```
-
-if --visualized pass:
-
-![Alt text](files/2.png)
-
-# Returns:
-
-1. Unmixed image will be saved with **_unmixed** suffix in `img_dir`.
-2. Report of unmixed values will be saved as **script_unmixed.csv** in working directory.
+2. `main_supervised`: In this mode, user can correct the script and all the channels provided in the script are going to be unmixed with
+ __chemical co-localization unmixing__ algorithm.
+ 
+    ![Alt text](files/1.png)
+    
+    ```bash
+    python main_supervised.py --img_dir=/path/to/input/dir \
+                              --save_dir=/path/to/save/dir \
+                              --script_file=/path/to/script/file   
+    ```
+    It will save unmixed images in `save_dir`.
 
 
+## Arguments:
+
+1. `main_unsupervised`:
+    
+    |Argument|Help|Example|
+    |---|---|---|
+    |img_dir|path to the directory of images|--img_dir=E:/50_plex/tif|
+    |save_dir|path to the directory to save unmixed images|--img_dir=E:/50_plex/tif|
+    |default_box|selected box coordinates xmin_ymin_xmax_ymax|--default_box=16200_6100_21300_12200|
+
+2. `main_supervised`:
+
+    |Argument|Help|Example|
+    |---|---|---|
+    |img_dir|path to the directory of images|--img_dir=E:/50_plex/tif|
+    |save_dir|path to the directory to save unmixed images|--img_dir=E:/50_plex/tif|
+    |script_file|csv script file name|--script_file=script.csv|
+    |default_box|selected box coordinates xmin_ymin_xmax_ymax|--default_box=16200_6100_21300_12200|
+    |visualize|visualize the unmixing report of crop|--visualize|
+
+## Notes:
+
+* if `--visualized` passed:
+    ![Alt text](files/2.png)
 

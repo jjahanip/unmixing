@@ -12,8 +12,8 @@ import matplotlib.pyplot as plt
 from sklearn import linear_model
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--img_dir', type=str, default='E:/10_plex_stroke_rat/original', help='path to the directory of input images')
-parser.add_argument('--save_dir', type=str, default='E:/10_plex_stroke_rat/unmixed', help='path to the directory to save unmixed images')
+parser.add_argument('--img_dir', type=str, default=r'E:\50_plex\tif\IL_corrected_registered', help='path to the directory of input images')
+parser.add_argument('--save_dir', type=str, default=r'E:\50_plex\tif\IL_corrected_registered_unmixed', help='path to the directory to save unmixed images')
 parser.add_argument('--default_box', type=str, default='30000_500_48000_12000', help='xmin_ymin_xmax_ymax')
 parser.add_argument('--round_pattern', type=str, default='R(\d+)', help='pattern for round idx')
 parser.add_argument('--channel_pattern', type=str, default='C(\d+)', help='pattern for channel idx')
@@ -76,6 +76,7 @@ def write_params_to_csv(filename, alphas, round_files):
             script_rows_str[row_idx] = [None] * 3
 
     df = pd.DataFrame(script_rows_str, columns=['channel_1', 'channel_2', 'channel_3'], index=round_files)
+    df = df.reindex(columns=df.columns.tolist() + ['xmin', 'ymin', 'xmax', 'ymax'])
     df.index.name = 'filename'
 
     # save df to csv file or update existing one
@@ -116,10 +117,6 @@ def unmix_original_images(rois, images, alphas, names):
 
 def main():
     files = [f for f in os.listdir(img_dir) if os.path.isfile(os.path.join(img_dir, f))]
-
-    # create dir for results
-    if not os.path.exists(os.path.join(img_dir, 'unmixed')):
-        os.mkdir(os.path.join(img_dir, 'unmixed'))
 
     # find how many rounds and channels we have
     num_rounds = max(set([int(re.compile(args.round_pattern).findall(file)[0])for file in files]))
@@ -173,5 +170,4 @@ if __name__ == '__main__':
 
 
     # TODO: script is fixed with size of 3 endmembers -> np.count_nonzero(alphas)
-    # TODO: add xmin ymin xmax ymax to scrip
 
