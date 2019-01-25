@@ -16,8 +16,8 @@ parser.add_argument('--img_dir', type=str, default=r'E:\50_plex\tif\pipeline2\IL
 parser.add_argument('--save_dir', type=str, default=r'E:\50_plex\tif\pipeline2\unmixed', help='path to the directory to save unmixed images')
 parser.add_argument('--has_brightfield', type=bool, default=True, help='If last channel is brightfield')
 parser.add_argument('--default_box', type=str, default='10000_7000_20000_12000', help='xmin_ymin_xmax_ymax')
-parser.add_argument('--round_pattern', type=str, default='R(\d+)', help='pattern for round idx')
-parser.add_argument('--channel_pattern', type=str, default='C(\d+)', help='pattern for channel idx')
+parser.add_argument('--round_pattern', type=str, default='_R', help='pattern for round idx')
+parser.add_argument('--channel_pattern', type=str, default='C', help='pattern for channel idx')
 
 args = parser.parse_args()
 
@@ -69,9 +69,6 @@ def write_params_to_csv(filename, alphas, round_files):
             for idx in row:
                 new_row.append(round_files[idx])
             script_rows_str[row_idx].extend(new_row)
-            # for idx in row:
-            #     new_row = [file for file in round_files if 'C{}'.format(idx) in file][0]
-            #     script_rows_str[row_idx].append(new_row)
             if len(script_rows_str[row_idx]) < 3:
                 script_rows_str[row_idx] = append_nones(3, script_rows_str[row_idx])
             if len(script_rows_str[row_idx]) > 3:
@@ -124,22 +121,22 @@ def main():
     files = [f for f in os.listdir(img_dir) if os.path.isfile(os.path.join(img_dir, f))]
 
     # find how many rounds and channels we have
-    num_rounds = max(set([int(re.compile(args.round_pattern).findall(file)[0])for file in files]))
-    num_channels = max(set([int(re.compile(args.channel_pattern).findall(file)[0]) for file in files]))
+    rounds = sorted(list(set([int(re.compile(args.round_pattern + '(\d+)').findall(file)[0]) for file in files])))
+    channels = sorted(list(set([int(re.compile(args.channel_pattern + '(\d+)').findall(file)[0]) for file in files])))
 
     default_box = list(map(int, args.default_box.split('_')))
     xmin, ymin, xmax, ymax = default_box
 
     images = []
     rois = []
-    for round_idx in range(1, num_rounds + 1):
+    for round_idx in rounds:
         print('*' * 50)
         print('Unxminging round {} ...'.format(round_idx))
-        round_files = list(filter(lambda x: 'R{}'.format(round_idx) in x, files))
+        round_files = list(filter(lambda x: args.round_pattern + str(round_idx) in x, files))
 
-        # last channel is brightfield so delete it
         if args.has_brightfield:
-                    round_files = [file for file in round_files if 'C{}'.format(num_channels) not in file]
+            # last channel is brightfield so delete it
+            round_files = [file for file in round_files if args.channel_pattern + str(max(channels)) not in file]
 
         # read images
         print('Reading images.')
@@ -175,3 +172,4 @@ if __name__ == '__main__':
 
 
     # TODO: script is fixed with size of 3 endmembers -> np.count_nonzero(alphas)
+    # TODO: add brightfiled channel number to args
