@@ -12,10 +12,10 @@ import tifffile
 import matplotlib.pyplot as plt
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--img_dir', type=str, default='E:/10_plex_stroke_rat/original', help='path to the directory of images')
-parser.add_argument('--save_dir', type=str, default='E:/10_plex_stroke_rat/unmixed', help='path to the directory to save unmixed images')
-parser.add_argument('--script_file', type=str, default='E:/10_plex_stroke_rat/supervised.csv', help='script file name')
-parser.add_argument('--default_box', type=str, default='30000_500_48000_12000', help='xmin_ymin_xmax_ymax')
+parser.add_argument('--img_dir', type=str, default=r'E:\50_plex\tif\pipeline2\IL_corrected', help='path to the directory of images')
+parser.add_argument('--save_dir', type=str, default=r'E:\50_plex\tif\pipeline2\unmixed', help='path to the directory to save unmixed images')
+parser.add_argument('--script_file', type=str, default=r'E:\50_plex\tif\pipeline2\unmixed\temp.csv', help='script file name')
+parser.add_argument('--default_box', type=str, default='10000_7000_20000_12000', help='xmin_ymin_xmax_ymax')
 parser.add_argument('--visualize', type=bool, default=False, help='plot the unmixing report | True | False')
 args = parser.parse_args()
 
@@ -177,7 +177,7 @@ def main():
         save_name = os.path.join(args.save_dir, src_name)
         tifffile.imsave(save_name, adjusted_img, bigtiff=True)
 
-    df.to_csv(os.path.join(args.save_dir, 'supervised.csv'), index=False)
+    df.to_csv(args.script_file, index=False)
 
 
 if __name__ == '__main__':
@@ -188,4 +188,4 @@ if __name__ == '__main__':
     print('*' * 50)
     print('Unmixing pipeline finished successfully in {} seconds.'.format(time.time() - start))
 
-
+    #TODO: save to overwright on input script

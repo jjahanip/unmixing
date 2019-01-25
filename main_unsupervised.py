@@ -12,9 +12,10 @@ import matplotlib.pyplot as plt
 from sklearn import linear_model
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--img_dir', type=str, default=r'E:\50_plex\tif\IL_corrected_registered', help='path to the directory of input images')
-parser.add_argument('--save_dir', type=str, default=r'E:\50_plex\tif\IL_corrected_registered_unmixed', help='path to the directory to save unmixed images')
-parser.add_argument('--default_box', type=str, default='30000_500_48000_12000', help='xmin_ymin_xmax_ymax')
+parser.add_argument('--img_dir', type=str, default=r'E:\50_plex\tif\pipeline2\IL_corrected', help='path to the directory of input images')
+parser.add_argument('--save_dir', type=str, default=r'E:\50_plex\tif\pipeline2\unmixed', help='path to the directory to save unmixed images')
+parser.add_argument('--has_brightfield', type=bool, default=True, help='If last channel is brightfield')
+parser.add_argument('--default_box', type=str, default='10000_7000_20000_12000', help='xmin_ymin_xmax_ymax')
 parser.add_argument('--round_pattern', type=str, default='R(\d+)', help='pattern for round idx')
 parser.add_argument('--channel_pattern', type=str, default='C(\d+)', help='pattern for channel idx')
 
@@ -57,16 +58,20 @@ def write_params_to_csv(filename, alphas, round_files):
             raise AttributeError('Length error list is too long.')
         return list_ + [None] * diff_len
 
-    # get idx of channels for each file in scrip
+    # get idx of channels for each file in script
     script_rows_idx = [np.nonzero(row)[0] for row in alphas]
     # convert idx of channel to filename
     script_rows_str = []
     for row_idx, row in enumerate(script_rows_idx):
         script_rows_str.append([])
         if len(row) != 0:
+            new_row = []
             for idx in row:
-                new_row = [file for file in round_files if 'C{}'.format(idx) in file][0]
-                script_rows_str[row_idx].append(new_row)
+                new_row.append(round_files[idx])
+            script_rows_str[row_idx].extend(new_row)
+            # for idx in row:
+            #     new_row = [file for file in round_files if 'C{}'.format(idx) in file][0]
+            #     script_rows_str[row_idx].append(new_row)
             if len(script_rows_str[row_idx]) < 3:
                 script_rows_str[row_idx] = append_nones(3, script_rows_str[row_idx])
             if len(script_rows_str[row_idx]) > 3:
@@ -131,14 +136,14 @@ def main():
         print('*' * 50)
         print('Unxminging round {} ...'.format(round_idx))
         round_files = list(filter(lambda x: 'R{}'.format(round_idx) in x, files))
+
         # last channel is brightfield so delete it
-        round_files = [file for file in round_files if 'C{}'.format(num_channels) not in file]
+        if args.has_brightfield:
+                    round_files = [file for file in round_files if 'C{}'.format(num_channels) not in file]
 
         # read images
         print('Reading images.')
-        for channel_idx in range(num_channels):
-            # get file name
-            filename = list(filter(lambda x: 'C{}'.format(channel_idx) in x, round_files))[0]
+        for filename in round_files:
             # read image and append to list
             image = img_as_float(tifffile.imread(os.path.join(img_dir, filename)))
             images.append(image)
@@ -170,4 +175,3 @@ if __name__ == '__main__':
 
 
     # TODO: script is fixed with size of 3 endmembers -> np.count_nonzero(alphas)
-
