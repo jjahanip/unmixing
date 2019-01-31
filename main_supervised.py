@@ -4,7 +4,7 @@ import argparse
 import warnings
 import pandas as pd
 import numpy as np
-from numpy import linalg as LA
+from scipy import linalg as LA
 from scipy import optimize
 from skimage import img_as_float, img_as_uint
 from skimage import exposure
@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 parser = argparse.ArgumentParser()
 parser.add_argument('--img_dir', type=str, default=r'E:\50_plex\tif\pipeline2\IL_corrected', help='path to the directory of images')
 parser.add_argument('--save_dir', type=str, default=r'E:\50_plex\tif\pipeline2\unmixed', help='path to the directory to save unmixed images')
-parser.add_argument('--script_file', type=str, default=r'E:\50_plex\tif\pipeline2\unmixed\temp.csv', help='script file name')
+parser.add_argument('--script_file', type=str, default=r'E:\50_plex\tif\pipeline2\unmixed\scripts\supervised.csv', help='script file name')
 parser.add_argument('--default_box', type=str, default='10000_7000_20000_12000', help='xmin_ymin_xmax_ymax')
 parser.add_argument('--visualize', type=bool, default=False, help='plot the unmixing report | True | False')
 args = parser.parse_args()
@@ -92,11 +92,14 @@ def unmix_channel(src_name, n1_name, n2_name, n3_name, box_info, visualize=False
     # define optimization function
     def f(params):
         alpha1, alpha2, alpha3 = params
-        return LA.norm(s - alpha1 * n1 - alpha2 * n2 - alpha3 * n3)
+        l1 = np.array(s - alpha1 * n1).flatten()
+        l2 = np.array(s - alpha2 * n2).flatten()
+        l3 = np.array(s - alpha3 * n3).flatten()
+        return LA.norm(l1, 2) + LA.norm(l2, 2) + LA.norm(l3, 2)
 
     # optimize paramteres
-    initial_guess = [0, 0, 0]
-    result = optimize.minimize(f, initial_guess, bounds=((0, 1), (0, 1), (0, 1)))
+    initial_guess = [1, 1, 1]
+    result = optimize.minimize(f, initial_guess, bounds=((0.0, 1.0), (0.0, 1.0), (0.0, 1.0)))
     alpha1, alpha2, alpha3 = result.x
     print('\n'.join('alpha_{} = {:.2f}'.format(i, alpha) for i, alpha in enumerate(result.x)))
 
@@ -165,10 +168,10 @@ def main():
             # unmix
             unmixed_image, alpha = unmix_channel(src_name, n1_name, n2_name, n3_name, box_info, visualize=args.visualize)
 
-            # update alphas with derived values
-            df.loc[index, 'alpha1'] = alpha[0]
-            df.loc[index, 'alpha2'] = alpha[1]
-            df.loc[index, 'alpha3'] = alpha[2]
+        # update alphas with derived values
+        df.loc[index, 'alpha1'] = alpha[0] if str(n1_name) != 'nan' else 0
+        df.loc[index, 'alpha2'] = alpha[1] if str(n2_name) != 'nan' else 0
+        df.loc[index, 'alpha3'] = alpha[2] if str(n3_name) != 'nan' else 0
 
         # rescale histogram of image
         adjusted_img = rescale_histogram(unmixed_image)
